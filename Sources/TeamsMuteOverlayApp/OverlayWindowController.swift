@@ -30,7 +30,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
             controller: controller,
             settings: settings,
             microphoneMonitor: microphoneMonitor,
-            mutedSpeechDetector: mutedSpeechDetector
+            mutedSpeechDetector: mutedSpeechDetector,
+            shouldSuppressToggle: { [weak window] in
+                window?.consumePendingDragSuppression() ?? false
+            }
         )
 
         window.isOpaque = false
@@ -77,6 +80,41 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         window.setFrame(frame, display: true)
     }
 
+    func moveToCurrentMouseScreenIfNeeded() {
+        guard let window else {
+            return
+        }
+
+        let mouseLocation = NSEvent.mouseLocation
+        guard let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+            return
+        }
+
+        let currentMidpoint = CGPoint(x: window.frame.midX, y: window.frame.midY)
+        guard !targetScreen.frame.contains(currentMidpoint) else {
+            return
+        }
+
+        let targetFrame = targetScreen.visibleFrame
+        let currentScreen = NSScreen.screens.first(where: { $0.frame.contains(currentMidpoint) })
+        let currentFrame = currentScreen?.visibleFrame ?? targetFrame
+        let relativeX = currentFrame.width > window.frame.width
+            ? (window.frame.minX - currentFrame.minX) / (currentFrame.width - window.frame.width)
+            : 1
+        let relativeY = currentFrame.height > window.frame.height
+            ? (window.frame.minY - currentFrame.minY) / (currentFrame.height - window.frame.height)
+            : 0
+        let clampedX = min(1, max(0, relativeX))
+        let clampedY = min(1, max(0, relativeY))
+        let origin = CGPoint(
+            x: targetFrame.minX + (targetFrame.width - window.frame.width) * clampedX,
+            y: targetFrame.minY + (targetFrame.height - window.frame.height) * clampedY
+        )
+
+        window.setFrameOrigin(origin)
+        settings.saveOverlayOrigin(origin)
+    }
+
     func windowDidMove(_ notification: Notification) {
         guard let origin = window?.frame.origin else {
             return
@@ -86,11 +124,48 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
 }
 
 final class DraggablePanel: NSPanel {
+    private let dragThreshold: CGFloat = 4
+    private var mouseDownLocation: NSPoint?
+    private var didDragSinceMouseDown = false
+    private var shouldSuppressNextClick = false
+
     override var canBecomeKey: Bool {
         false
     }
 
     override var canBecomeMain: Bool {
         false
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        mouseDownLocation = event.locationInWindow
+        didDragSinceMouseDown = false
+        shouldSuppressNextClick = false
+        super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        if let mouseDownLocation {
+            let location = event.locationInWindow
+            let deltaX = location.x - mouseDownLocation.x
+            let deltaY = location.y - mouseDownLocation.y
+            if hypot(deltaX, deltaY) >= dragThreshold {
+                didDragSinceMouseDown = true
+            }
+        }
+        super.mouseDragged(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        shouldSuppressNextClick = didDragSinceMouseDown
+        mouseDownLocation = nil
+        didDragSinceMouseDown = false
+        super.mouseUp(with: event)
+    }
+
+    func consumePendingDragSuppression() -> Bool {
+        let shouldSuppress = shouldSuppressNextClick
+        shouldSuppressNextClick = false
+        return shouldSuppress
     }
 }

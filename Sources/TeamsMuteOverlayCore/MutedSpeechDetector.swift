@@ -4,21 +4,28 @@ import Foundation
 @MainActor
 public final class MutedSpeechDetector: ObservableObject {
     @Published public private(set) var isWarningActive = false
+    @Published public private(set) var smoothedLevel: Float = 0
 
-    private let threshold: Float
+    private let activationThreshold: Float
+    private let releaseThreshold: Float
     private let activationDuration: TimeInterval
     private let releaseDuration: TimeInterval
+    private let smoothingFactor: Float
     private var loudSince: Date?
     private var quietSince: Date?
 
     public init(
-        threshold: Float = 0.10,
-        activationDuration: TimeInterval = 0.85,
-        releaseDuration: TimeInterval = 0.22
+        activationThreshold: Float = 0.12,
+        releaseThreshold: Float = 0.06,
+        activationDuration: TimeInterval = 0.75,
+        releaseDuration: TimeInterval = 0.25,
+        smoothingFactor: Float = 0.28
     ) {
-        self.threshold = threshold
+        self.activationThreshold = activationThreshold
+        self.releaseThreshold = releaseThreshold
         self.activationDuration = activationDuration
         self.releaseDuration = releaseDuration
+        self.smoothingFactor = min(1, max(0, smoothingFactor))
     }
 
     public func update(level: Float, shouldDetect: Bool, now: Date = Date()) {
@@ -27,7 +34,9 @@ public final class MutedSpeechDetector: ObservableObject {
             return
         }
 
-        if level >= threshold {
+        smoothedLevel = smoothedLevel + (min(1, max(0, level)) - smoothedLevel) * smoothingFactor
+
+        if smoothedLevel >= activationThreshold {
             quietSince = nil
             if loudSince == nil {
                 loudSince = now
@@ -38,18 +47,26 @@ public final class MutedSpeechDetector: ObservableObject {
             return
         }
 
-        loudSince = nil
-        if quietSince == nil {
-            quietSince = now
+        if !isWarningActive {
+            loudSince = nil
+            quietSince = nil
         }
-        if let quietSince, now.timeIntervalSince(quietSince) >= releaseDuration {
-            isWarningActive = false
+
+        if smoothedLevel <= releaseThreshold {
+            loudSince = nil
+            if quietSince == nil {
+                quietSince = now
+            }
+            if let quietSince, now.timeIntervalSince(quietSince) >= releaseDuration {
+                isWarningActive = false
+            }
         }
     }
 
     public func reset() {
         loudSince = nil
         quietSince = nil
+        smoothedLevel = 0
         isWarningActive = false
     }
 }

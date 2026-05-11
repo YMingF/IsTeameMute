@@ -85,6 +85,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.updateMenu()
             }
             .store(in: &cancellables)
+
+        mutedSpeechDetector.$isWarningActive
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isWarningActive in
+                guard isWarningActive else {
+                    return
+                }
+                self?.overlayWindowController?.moveToCurrentMouseScreenIfNeeded()
+            }
+            .store(in: &cancellables)
     }
 
     private var cancellables: Set<AnyCancellableBox> = []
