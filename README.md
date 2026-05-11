@@ -6,6 +6,11 @@ The app intentionally depends on Teams' local Third-party app API. If that API i
 missing, or unable to report meeting/mic state, this project reports that Scheme 2 is not
 available and does not fall back to system microphone guessing.
 
+## 文档导航
+
+- [A. 部署与运行说明](部署说明.md)
+- [B. 功能介绍](功能介绍.md)
+
 ## Build
 
 ```bash

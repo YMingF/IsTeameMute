@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let mutedSpeechDetector = MutedSpeechDetector()
     private var statusItem: NSStatusItem?
     private var overlayWindowController: OverlayWindowController?
+    private var warningScreenTrackingCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.microphonePulseEnabled = settings.pulseEnabled
@@ -90,10 +91,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] isWarningActive in
-                guard isWarningActive else {
-                    return
+                if isWarningActive {
+                    self?.startWarningScreenTracking()
+                } else {
+                    self?.stopWarningScreenTracking()
                 }
-                self?.overlayWindowController?.moveToCurrentMouseScreenIfNeeded()
             }
             .store(in: &cancellables)
     }
@@ -193,6 +195,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             level: microphoneMonitor.level,
             shouldDetect: settings.mutedSpeechWarningEnabled && controller.state == .muted && !microphoneMonitor.permissionDenied
         )
+    }
+
+    private func startWarningScreenTracking() {
+        overlayWindowController?.moveToCurrentMouseScreenIfNeeded()
+        warningScreenTrackingCancellable?.cancel()
+        warningScreenTrackingCancellable = Timer.publish(every: 0.35, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.overlayWindowController?.moveToCurrentMouseScreenIfNeeded()
+            }
+    }
+
+    private func stopWarningScreenTracking() {
+        warningScreenTrackingCancellable?.cancel()
+        warningScreenTrackingCancellable = nil
     }
 }
 

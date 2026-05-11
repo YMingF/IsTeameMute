@@ -40,6 +40,7 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         window.backgroundColor = .clear
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        window.sharingType = .none
         window.hasShadow = true
         window.isMovableByWindowBackground = true
         window.contentView = NSHostingView(rootView: view)
