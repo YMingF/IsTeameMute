@@ -1,4 +1,5 @@
 import AVFAudio
+import AVFoundation
 import Combine
 import Foundation
 
@@ -9,30 +10,73 @@ public final class MicrophoneLevelMonitor: ObservableObject {
 
     private var engine: AVAudioEngine?
     private var isRunning = false
+    private var isEnabled = false
+    private var isRequestingPermission = false
 
     public init() {}
 
     public func setEnabled(_ enabled: Bool) {
+        isEnabled = enabled
         enabled ? start() : stop()
     }
 
     public func start() {
+        isEnabled = true
         guard !isRunning else {
             return
         }
 
-        startEngine()
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            startEngine()
+        case .notDetermined:
+            requestMicrophonePermission()
+        case .denied, .restricted:
+            permissionDenied = true
+            level = 0
+        @unknown default:
+            permissionDenied = true
+            level = 0
+        }
     }
 
     public func stop() {
-        isRunning = false
-        engine?.inputNode.removeTap(onBus: 0)
-        engine?.stop()
-        engine = nil
+        isEnabled = false
+        isRequestingPermission = false
+        stopEngine()
         level = 0
     }
 
+    private func requestMicrophonePermission() {
+        guard !isRequestingPermission else {
+            return
+        }
+
+        isRequestingPermission = true
+        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+            Task { @MainActor in
+                guard let self else {
+                    return
+                }
+
+                self.isRequestingPermission = false
+                guard self.isEnabled else {
+                    return
+                }
+
+                if granted {
+                    self.startEngine()
+                } else {
+                    self.permissionDenied = true
+                    self.level = 0
+                }
+            }
+        }
+    }
+
     private func startEngine() {
+        stopEngine()
+
         let engine = AVAudioEngine()
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
@@ -63,7 +107,18 @@ public final class MicrophoneLevelMonitor: ObservableObject {
             isRunning = true
             permissionDenied = false
         } catch {
+            engine.inputNode.removeTap(onBus: 0)
+            engine.stop()
+            isRunning = false
+            self.engine = nil
             permissionDenied = true
         }
+    }
+
+    private func stopEngine() {
+        isRunning = false
+        engine?.inputNode.removeTap(onBus: 0)
+        engine?.stop()
+        engine = nil
     }
 }

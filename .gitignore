@@ -1,3 +1,5 @@
 /.trellis/
 /.codex/
 /.agents/
+/.build/
+/dist/

@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import SwiftUI
 import TeamsMuteOverlayCore
 
@@ -81,13 +82,12 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         window.setFrame(frame, display: true)
     }
 
-    func moveToCurrentMouseScreenIfNeeded() {
+    func moveToActiveScreenIfNeeded() {
         guard let window else {
             return
         }
 
-        let mouseLocation = NSEvent.mouseLocation
-        guard let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+        guard let targetScreen = activeApplicationScreen() ?? currentMouseScreen() ?? NSScreen.main else {
             return
         }
 
@@ -116,11 +116,53 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         settings.saveOverlayOrigin(origin)
     }
 
+    private func activeApplicationScreen() -> NSScreen? {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        else {
+            return nil
+        }
+
+        for windowInfo in windowList {
+            guard (windowInfo[kCGWindowOwnerPID as String] as? pid_t) == pid,
+                  (windowInfo[kCGWindowLayer as String] as? Int) == 0,
+                  let boundsInfo = windowInfo[kCGWindowBounds as String] as? [String: Any],
+                  let bounds = CGRect(dictionaryRepresentation: boundsInfo as CFDictionary),
+                  bounds.width > 1,
+                  bounds.height > 1
+            else {
+                continue
+            }
+
+            let midpoint = CGPoint(x: bounds.midX, y: bounds.midY)
+            if let screen = NSScreen.screens.first(where: { $0.cgDisplayBounds.contains(midpoint) }) {
+                return screen
+            }
+        }
+
+        return nil
+    }
+
+    private func currentMouseScreen() -> NSScreen? {
+        let mouseLocation = NSEvent.mouseLocation
+        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) })
+    }
+
     func windowDidMove(_ notification: Notification) {
         guard let origin = window?.frame.origin else {
             return
         }
         settings.saveOverlayOrigin(origin)
+    }
+}
+
+private extension NSScreen {
+    var cgDisplayBounds: CGRect {
+        guard let displayID = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else {
+            return frame
+        }
+
+        return CGDisplayBounds(displayID)
     }
 }
 

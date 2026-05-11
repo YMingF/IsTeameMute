@@ -8,8 +8,10 @@ final class MutedSpeechDetectorTests: XCTestCase {
         let start = Date()
 
         detector.update(level: 0.5, shouldDetect: true, now: start)
+        XCTAssertTrue(detector.hasAudibleInput)
         detector.update(level: 0.5, shouldDetect: true, now: start.addingTimeInterval(0.5))
         XCTAssertFalse(detector.isWarningActive)
+        XCTAssertTrue(detector.hasAudibleInput)
 
         detector.update(level: 0.5, shouldDetect: true, now: start.addingTimeInterval(0.76))
         XCTAssertTrue(detector.isWarningActive)
@@ -52,10 +54,12 @@ final class MutedSpeechDetectorTests: XCTestCase {
         detector.update(level: 0.5, shouldDetect: true, now: start.addingTimeInterval(0.76))
         XCTAssertTrue(detector.isWarningActive)
         XCTAssertGreaterThan(detector.smoothedLevel, 0)
+        XCTAssertTrue(detector.hasAudibleInput)
 
         detector.update(level: 0.5, shouldDetect: false, now: start.addingTimeInterval(0.8))
 
         XCTAssertFalse(detector.isWarningActive)
         XCTAssertEqual(detector.smoothedLevel, 0)
+        XCTAssertFalse(detector.hasAudibleInput)
     }
 }

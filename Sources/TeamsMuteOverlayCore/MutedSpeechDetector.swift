@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 public final class MutedSpeechDetector: ObservableObject {
     @Published public private(set) var isWarningActive = false
+    @Published public private(set) var hasAudibleInput = false
     @Published public private(set) var smoothedLevel: Float = 0
 
     private let activationThreshold: Float
@@ -37,6 +38,7 @@ public final class MutedSpeechDetector: ObservableObject {
         smoothedLevel = smoothedLevel + (min(1, max(0, level)) - smoothedLevel) * smoothingFactor
 
         if smoothedLevel >= activationThreshold {
+            hasAudibleInput = true
             quietSince = nil
             if loudSince == nil {
                 loudSince = now
@@ -50,9 +52,11 @@ public final class MutedSpeechDetector: ObservableObject {
         if !isWarningActive {
             loudSince = nil
             quietSince = nil
+            hasAudibleInput = false
         }
 
         if smoothedLevel <= releaseThreshold {
+            hasAudibleInput = false
             loudSince = nil
             if quietSince == nil {
                 quietSince = now
@@ -67,6 +71,7 @@ public final class MutedSpeechDetector: ObservableObject {
         loudSince = nil
         quietSince = nil
         smoothedLevel = 0
+        hasAudibleInput = false
         isWarningActive = false
     }
 }

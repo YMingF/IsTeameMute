@@ -103,6 +103,43 @@ This starts a foreground macOS app with a menu bar item and an always-on-top dra
 floating overlay. The overlay only offers click-to-toggle when Teams reports a real
 `muted` or `unmuted` meeting state.
 
+## Release DMG
+
+The release path creates a movable macOS app bundle and DMG. It requires a healthy full
+Xcode toolchain because SwiftPM release builds, Developer ID signing, and notarization use
+Apple command line tools.
+
+Local unsigned validation build:
+
+```bash
+Scripts/package-dmg.sh
+```
+
+Formal distribution outside the Mac App Store requires an Apple Developer Program account,
+a Developer ID Application certificate, and notarization credentials:
+
+```bash
+TEAM_ID="APPLE_TEAM_ID" \
+APPLE_ID="developer@example.com" \
+APP_SPECIFIC_PASSWORD="app-specific-password" \
+SIGNING_IDENTITY="Developer ID Application: Name (APPLE_TEAM_ID)" \
+BUNDLE_ID="com.example.TeamsMuteOverlay" \
+VERSION="0.1.0" \
+BUILD_NUMBER="1" \
+NOTARIZE=1 \
+Scripts/package-dmg.sh
+```
+
+Outputs:
+
+- `dist/TeamsMuteOverlay.app`
+- `dist/TeamsMuteOverlay.dmg`
+- `dist/notary/notary-submit.json` when notarization is enabled
+
+The packaged app includes `NSMicrophoneUsageDescription` for the optional microphone
+volume features. Audio is only read as a live level meter and is not recorded or written to
+disk.
+
 ## Notes
 
 - Token storage uses macOS Keychain service `TeamsMuteOverlay`.

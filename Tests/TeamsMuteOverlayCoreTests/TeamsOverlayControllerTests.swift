@@ -31,17 +31,15 @@ final class TeamsOverlayControllerTests: XCTestCase {
 
         controller.start()
         client.emit(.meetingUpdate(MeetingUpdate(meetingState: MeetingState(isMuted: false, isInMeeting: true))))
-        XCTAssertEqual(controller.state, .unmuted)
+        await waitForState(.unmuted, controller: controller)
 
         controller.toggleMute()
         XCTAssertEqual(controller.state, .syncing(previous: .unmuted))
 
-        try? await Task.sleep(for: .milliseconds(90))
-
-        guard case .error(let message) = controller.state else {
-            return XCTFail("Expected error, got \(controller.state)")
-        }
-        XCTAssertEqual(message, "Teams did not confirm mute state within 1.5 seconds")
+        await waitForError(
+            "Teams did not confirm mute state within 1.5 seconds",
+            controller: controller
+        )
     }
 
     func testToggleConfirmationMovesToMuted() async {
@@ -55,11 +53,45 @@ final class TeamsOverlayControllerTests: XCTestCase {
 
         controller.start()
         client.emit(.meetingUpdate(MeetingUpdate(meetingState: MeetingState(isMuted: false, isInMeeting: true))))
+        await waitForState(.unmuted, controller: controller)
+
         controller.toggleMute()
         client.emit(.meetingUpdate(MeetingUpdate(meetingState: MeetingState(isMuted: true, isInMeeting: true))))
 
-        try? await Task.sleep(for: .milliseconds(20))
-        XCTAssertEqual(controller.state, .muted)
+        await waitForState(.muted, controller: controller)
+    }
+
+    private func waitForState(
+        _ expected: TeamsOverlayState,
+        controller: TeamsOverlayController,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        for _ in 0..<20 {
+            if controller.state == expected {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTFail("Expected \(expected), got \(controller.state)", file: file, line: line)
+    }
+
+    private func waitForError(
+        _ expectedMessage: String,
+        controller: TeamsOverlayController,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        for _ in 0..<20 {
+            if case .error(let message) = controller.state {
+                XCTAssertEqual(message, expectedMessage, file: file, line: line)
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTFail("Expected error, got \(controller.state)", file: file, line: line)
     }
 }
 

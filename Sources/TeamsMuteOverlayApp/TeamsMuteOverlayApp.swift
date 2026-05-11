@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let mutedSpeechDetector = MutedSpeechDetector()
     private var statusItem: NSStatusItem?
     private var overlayWindowController: OverlayWindowController?
-    private var warningScreenTrackingCancellable: AnyCancellable?
+    private var activeSpeechScreenTrackingCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.microphonePulseEnabled = settings.pulseEnabled
@@ -91,10 +91,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] isWarningActive in
-                if isWarningActive {
-                    self?.startWarningScreenTracking()
-                } else {
-                    self?.stopWarningScreenTracking()
+                if !isWarningActive, self?.mutedSpeechDetector.hasAudibleInput != true {
+                    self?.stopActiveSpeechScreenTracking()
+                }
+            }
+            .store(in: &cancellables)
+
+        mutedSpeechDetector.$hasAudibleInput
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] hasAudibleInput in
+                if hasAudibleInput {
+                    self?.startActiveSpeechScreenTracking()
+                } else if self?.mutedSpeechDetector.isWarningActive != true {
+                    self?.stopActiveSpeechScreenTracking()
                 }
             }
             .store(in: &cancellables)
@@ -197,19 +207,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func startWarningScreenTracking() {
-        overlayWindowController?.moveToCurrentMouseScreenIfNeeded()
-        warningScreenTrackingCancellable?.cancel()
-        warningScreenTrackingCancellable = Timer.publish(every: 0.35, on: .main, in: .common)
+    private func startActiveSpeechScreenTracking() {
+        overlayWindowController?.moveToActiveScreenIfNeeded()
+        activeSpeechScreenTrackingCancellable?.cancel()
+        activeSpeechScreenTrackingCancellable = Timer.publish(every: 0.35, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.overlayWindowController?.moveToCurrentMouseScreenIfNeeded()
+                self?.overlayWindowController?.moveToActiveScreenIfNeeded()
             }
     }
 
-    private func stopWarningScreenTracking() {
-        warningScreenTrackingCancellable?.cancel()
-        warningScreenTrackingCancellable = nil
+    private func stopActiveSpeechScreenTracking() {
+        activeSpeechScreenTrackingCancellable?.cancel()
+        activeSpeechScreenTrackingCancellable = nil
     }
 }
 
