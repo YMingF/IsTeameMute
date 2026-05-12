@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "TeamsMuteOverlayCore", targets: ["TeamsMuteOverlayCore"]),
         .executable(name: "teams-mute-overlay", targets: ["TeamsMuteOverlayApp"]),
+        .executable(name: "teams-mute-overlay-meeting-helper", targets: ["TeamsMuteOverlayMeetingHelper"]),
         .executable(name: "teams-mute-spike", targets: ["teams-mute-spike"])
     ],
     targets: [
@@ -29,6 +30,13 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI")
+            ]
+        ),
+        .executableTarget(
+            name: "TeamsMuteOverlayMeetingHelper",
+            dependencies: ["TeamsMuteOverlayCore"],
+            linkerSettings: [
+                .linkedFramework("AppKit")
             ]
         ),
         .executableTarget(

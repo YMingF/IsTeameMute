@@ -4,10 +4,6 @@ import Foundation
 public final class AppSettings: ObservableObject {
     private let defaults: UserDefaults
 
-    @Published public var launchAtLogin: Bool {
-        didSet { defaults.set(launchAtLogin, forKey: Keys.launchAtLogin) }
-    }
-
     @Published public var overlaySize: Double {
         didSet { defaults.set(overlaySize, forKey: Keys.overlaySize) }
     }
@@ -20,14 +16,18 @@ public final class AppSettings: ObservableObject {
         didSet { defaults.set(mutedSpeechWarningEnabled, forKey: Keys.mutedSpeechWarningEnabled) }
     }
 
+    @Published public var launchWhenTeamsMeetingStarts: Bool {
+        didSet { defaults.set(launchWhenTeamsMeetingStarts, forKey: Keys.launchWhenTeamsMeetingStarts) }
+    }
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
 
         let savedSize = defaults.double(forKey: Keys.overlaySize)
         self.overlaySize = savedSize > 0 ? savedSize : 96
         self.pulseEnabled = defaults.bool(forKey: Keys.pulseEnabled)
         self.mutedSpeechWarningEnabled = defaults.object(forKey: Keys.mutedSpeechWarningEnabled) as? Bool ?? true
+        self.launchWhenTeamsMeetingStarts = defaults.object(forKey: Keys.launchWhenTeamsMeetingStarts) as? Bool ?? true
     }
 
     public func resetOverlayPosition() {
@@ -54,10 +54,10 @@ public final class AppSettings: ObservableObject {
     }
 
     private enum Keys {
-        static let launchAtLogin = "launchAtLogin"
         static let overlaySize = "overlaySize"
         static let pulseEnabled = "pulseEnabled"
         static let mutedSpeechWarningEnabled = "mutedSpeechWarningEnabled"
+        static let launchWhenTeamsMeetingStarts = "launchWhenTeamsMeetingStarts"
         static let overlayX = "overlayX"
         static let overlayY = "overlayY"
     }

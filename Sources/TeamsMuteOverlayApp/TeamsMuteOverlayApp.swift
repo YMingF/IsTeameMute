@@ -17,16 +17,27 @@ struct TeamsMuteOverlayApp {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let autoLaunchArgument = "--auto-launched-for-teams-meeting"
     private let controller = TeamsOverlayController()
     private let settings = AppSettings()
     private let microphoneMonitor = MicrophoneLevelMonitor()
     private let mutedSpeechDetector = MutedSpeechDetector()
+    private let meetingAutoLaunchService = MeetingAutoLaunchService()
+    private let overlayVisibilityPolicy = OverlayVisibilityPolicy()
+    private let wasLaunchedForTeamsMeeting: Bool
+    private var hasSeenActiveMeeting = false
     private var statusItem: NSStatusItem?
     private var overlayWindowController: OverlayWindowController?
     private var activeSpeechScreenTrackingCancellable: AnyCancellable?
 
+    override init() {
+        self.wasLaunchedForTeamsMeeting = CommandLine.arguments.contains(autoLaunchArgument)
+        super.init()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller.microphonePulseEnabled = settings.pulseEnabled
+        updateMeetingAutoLaunchRegistration()
         updateMicrophoneMonitoring()
         setupStatusItem()
         setupOverlay()
@@ -48,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             microphoneMonitor: microphoneMonitor,
             mutedSpeechDetector: mutedSpeechDetector
         )
-        overlayWindowController?.show()
+        overlayWindowController?.hide()
     }
 
     private func bindSettings() {
@@ -70,6 +81,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        settings.$launchWhenTeamsMeetingStarts
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateMeetingAutoLaunchRegistration()
+                self?.updateMenu()
+            }
+            .store(in: &cancellables)
+
         microphoneMonitor.$level
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -81,8 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
                 self?.statusItem?.button?.title = "Teams \(state.shortLabel)"
+                self?.updateOverlayVisibility(state: state)
                 self?.updateMicrophoneMonitoring()
                 self?.updateMutedSpeechDetector()
+                self?.terminateAfterAutoLaunchedMeetingEnds(state: state)
                 self?.updateMenu()
             }
             .store(in: &cancellables)
@@ -139,6 +160,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         warningItem.state = settings.mutedSpeechWarningEnabled ? .on : .off
         menu.addItem(warningItem)
 
+        let autoLaunchItem = NSMenuItem(title: "Teams 会议开始时自动启动", action: #selector(toggleMeetingAutoLaunch), keyEquivalent: "")
+        autoLaunchItem.target = self
+        autoLaunchItem.state = settings.launchWhenTeamsMeetingStarts ? .on : .off
+        menu.addItem(autoLaunchItem)
+
         menu.addItem(NSMenuItem.separator())
 
         let sizeMenu = NSMenu()
@@ -183,6 +209,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.mutedSpeechWarningEnabled.toggle()
     }
 
+    @objc private func toggleMeetingAutoLaunch() {
+        settings.launchWhenTeamsMeetingStarts.toggle()
+    }
+
     @objc private func setOverlaySize(_ sender: NSMenuItem) {
         guard let size = sender.representedObject as? Double else {
             return
@@ -198,6 +228,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateMicrophoneMonitoring() {
         microphoneMonitor.setEnabled(settings.pulseEnabled || settings.mutedSpeechWarningEnabled)
+    }
+
+    private func updateMeetingAutoLaunchRegistration() {
+        do {
+            if settings.launchWhenTeamsMeetingStarts {
+                try meetingAutoLaunchService.register()
+            } else {
+                try meetingAutoLaunchService.unregister()
+            }
+        } catch {
+            NSLog("TeamsMuteOverlay meeting auto-launch update failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func terminateAfterAutoLaunchedMeetingEnds(state: TeamsOverlayState) {
+        guard wasLaunchedForTeamsMeeting else {
+            return
+        }
+
+        if state == .muted || state == .unmuted {
+            hasSeenActiveMeeting = true
+            return
+        }
+
+        guard hasSeenActiveMeeting, state == .notInMeeting else {
+            return
+        }
+
+        NSApplication.shared.terminate(nil)
+    }
+
+    private func updateOverlayVisibility(state: TeamsOverlayState) {
+        let isInActiveMeeting = controller.lastMeetingUpdate?.meetingState?.isInMeeting == true
+        if isInActiveMeeting {
+            hasSeenActiveMeeting = true
+        }
+
+        if overlayVisibilityPolicy.shouldShowOverlay(
+            state: state,
+            isInActiveMeeting: isInActiveMeeting,
+            hasSeenActiveMeeting: hasSeenActiveMeeting
+        ) {
+            overlayWindowController?.show()
+        } else {
+            overlayWindowController?.hide()
+        }
     }
 
     private func updateMutedSpeechDetector() {

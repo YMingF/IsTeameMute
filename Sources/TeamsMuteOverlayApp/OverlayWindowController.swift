@@ -58,6 +58,10 @@ final class OverlayWindowController: NSWindowController, NSWindowDelegate {
         window?.orderFrontRegardless()
     }
 
+    func hide() {
+        window?.orderOut(nil)
+    }
+
     func resetPosition() {
         guard let window else {
             return

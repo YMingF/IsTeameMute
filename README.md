@@ -140,9 +140,18 @@ The packaged app includes `NSMicrophoneUsageDescription` for the optional microp
 volume features. Audio is only read as a live level meter and is not recorded or written to
 disk.
 
+The packaged app also embeds a login item helper at
+`Contents/Library/LoginItems/TeamsMuteOverlayMeetingHelper.app`. The helper can be
+registered from the menu item `Teams 会议开始时自动启动`. When enabled, it runs quietly
+after login, waits for Teams to report `meetingState.isInMeeting == true`, then opens the
+main overlay app. If the helper launched the app for a meeting, the app exits after Teams
+reports that the meeting ended. Turning the menu item off unregisters the helper.
+
 ## Notes
 
 - Token storage uses macOS Keychain service `TeamsMuteOverlay`.
 - Settings are stored in `UserDefaults`.
 - Optional microphone pulse is off by default. When enabled, macOS asks for microphone
   permission; audio is not recorded or written to disk.
+- Meeting-triggered auto launch requires a previously paired Teams API token, because the
+  helper uses the same local Teams API instead of guessing from system microphone state.
