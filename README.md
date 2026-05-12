@@ -1,4 +1,4 @@
-# Teams Mute Overlay
+# Teams Mic Control
 
 Local macOS menu bar app and floating overlay for Microsoft Teams desktop mute state.
 
@@ -10,6 +10,7 @@ available and does not fall back to system microphone guessing.
 
 - [A. 部署与运行说明](部署说明.md)
 - [B. 功能介绍](功能介绍.md)
+- [C. 常见问题：权限与安全说明](常见问题-权限与安全说明.md)
 
 ## Build
 
@@ -132,8 +133,8 @@ Scripts/package-dmg.sh
 
 Outputs:
 
-- `dist/TeamsMuteOverlay.app`
-- `dist/TeamsMuteOverlay.dmg`
+- `dist/Teams Mic Control.app`
+- `dist/Teams Mic Control.dmg`
 - `dist/notary/notary-submit.json` when notarization is enabled
 
 The packaged app includes `NSMicrophoneUsageDescription` for the optional microphone
@@ -146,12 +147,16 @@ registered from the menu item `Teams 会议开始时自动启动`. When enabled,
 after login, waits for Teams to report `meetingState.isInMeeting == true`, then opens the
 main overlay app. If the helper launched the app for a meeting, the app exits after Teams
 reports that the meeting ended. Turning the menu item off unregisters the helper.
+Install and launch the app from `/Applications/Teams Mic Control.app`; launching from the
+mounted DMG can leave macOS with a temporary login item path. Opening the installed app once
+refreshes the login item registration for the current app location.
 
 ## Notes
 
 - Token storage uses macOS Keychain service `TeamsMuteOverlay`.
 - Settings are stored in `UserDefaults`.
-- Optional microphone pulse is off by default. When enabled, macOS asks for microphone
-  permission; audio is not recorded or written to disk.
+- Live volume visualization and the optional microphone pulse use microphone access only
+  as a live level meter. macOS may ask for microphone permission the first time the app
+  needs that level; audio is not recorded or written to disk.
 - Meeting-triggered auto launch requires a previously paired Teams API token, because the
   helper uses the same local Teams API instead of guessing from system microphone state.

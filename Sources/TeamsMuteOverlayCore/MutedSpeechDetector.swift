@@ -16,11 +16,11 @@ public final class MutedSpeechDetector: ObservableObject {
     private var quietSince: Date?
 
     public init(
-        activationThreshold: Float = 0.12,
-        releaseThreshold: Float = 0.06,
-        activationDuration: TimeInterval = 0.75,
-        releaseDuration: TimeInterval = 0.25,
-        smoothingFactor: Float = 0.28
+        activationThreshold: Float = 0.20,
+        releaseThreshold: Float = 0.08,
+        activationDuration: TimeInterval = 1.20,
+        releaseDuration: TimeInterval = 0.35,
+        smoothingFactor: Float = 0.18
     ) {
         self.activationThreshold = activationThreshold
         self.releaseThreshold = releaseThreshold

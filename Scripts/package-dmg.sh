@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-APP_NAME="${APP_NAME:-TeamsMuteOverlay}"
-APP_DISPLAY_NAME="${APP_DISPLAY_NAME:-Teams Mute Overlay}"
+APP_NAME="${APP_NAME:-Teams Mic Control}"
+APP_DISPLAY_NAME="${APP_DISPLAY_NAME:-Teams Mic Control}"
 PRODUCT_NAME="${PRODUCT_NAME:-teams-mute-overlay}"
 HELPER_PRODUCT_NAME="${HELPER_PRODUCT_NAME:-teams-mute-overlay-meeting-helper}"
 EXECUTABLE_NAME="${EXECUTABLE_NAME:-TeamsMuteOverlay}"
@@ -113,7 +113,7 @@ cat > "$APP_PATH/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Teams Mute Overlay uses microphone access only to measure live local input volume for the optional pulse and muted-speech warning features. Audio is not recorded or saved.</string>
+  <string>Teams Mic Control uses microphone access only as a live local input level meter for the Live button visualization, optional pulse, and muted-speech warning features. Audio is not recorded or saved.</string>
 </dict>
 </plist>
 PLIST

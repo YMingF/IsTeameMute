@@ -227,7 +227,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateMicrophoneMonitoring() {
-        microphoneMonitor.setEnabled(settings.pulseEnabled || settings.mutedSpeechWarningEnabled)
+        microphoneMonitor.setEnabled(
+            settings.pulseEnabled
+                || settings.mutedSpeechWarningEnabled
+                || controller.state == .unmuted
+        )
     }
 
     private func updateMeetingAutoLaunchRegistration() {

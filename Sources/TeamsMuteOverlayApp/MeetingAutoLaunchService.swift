@@ -8,7 +8,9 @@ protocol MeetingAutoLaunchServicing {
 
 struct MeetingAutoLaunchService: MeetingAutoLaunchServicing {
     func register() throws {
-        try service().register()
+        let service = service()
+        try? service.unregister()
+        try service.register()
     }
 
     func unregister() throws {

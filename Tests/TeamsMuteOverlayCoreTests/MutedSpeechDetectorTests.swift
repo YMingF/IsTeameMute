@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class MutedSpeechDetectorTests: XCTestCase {
     func testRequiresSustainedSmoothedLevelBeforeActivating() {
-        let detector = MutedSpeechDetector(smoothingFactor: 1)
+        let detector = MutedSpeechDetector(activationDuration: 0.75, smoothingFactor: 1)
         let start = Date()
 
         detector.update(level: 0.5, shouldDetect: true, now: start)
@@ -29,8 +29,35 @@ final class MutedSpeechDetectorTests: XCTestCase {
         XCTAssertFalse(detector.isWarningActive)
     }
 
+    func testDefaultDetectorIgnoresSustainedBackgroundNoise() {
+        let detector = MutedSpeechDetector()
+        let start = Date()
+
+        for step in 0...30 {
+            detector.update(level: 0.14, shouldDetect: true, now: start.addingTimeInterval(Double(step) * 0.1))
+        }
+
+        XCTAssertFalse(detector.isWarningActive)
+    }
+
+    func testDefaultDetectorActivatesForSustainedSpeech() {
+        let detector = MutedSpeechDetector()
+        let start = Date()
+
+        for step in 0...18 {
+            detector.update(level: 0.7, shouldDetect: true, now: start.addingTimeInterval(Double(step) * 0.1))
+        }
+
+        XCTAssertTrue(detector.isWarningActive)
+    }
+
     func testReleaseUsesLowerThresholdAndDuration() {
-        let detector = MutedSpeechDetector(smoothingFactor: 1)
+        let detector = MutedSpeechDetector(
+            releaseThreshold: 0.06,
+            activationDuration: 0.75,
+            releaseDuration: 0.25,
+            smoothingFactor: 1
+        )
         let start = Date()
 
         detector.update(level: 0.5, shouldDetect: true, now: start)
@@ -47,7 +74,7 @@ final class MutedSpeechDetectorTests: XCTestCase {
     }
 
     func testDisablingDetectionResetsWarningAndSmoothedLevel() {
-        let detector = MutedSpeechDetector(smoothingFactor: 1)
+        let detector = MutedSpeechDetector(activationDuration: 0.75, smoothingFactor: 1)
         let start = Date()
 
         detector.update(level: 0.5, shouldDetect: true, now: start)

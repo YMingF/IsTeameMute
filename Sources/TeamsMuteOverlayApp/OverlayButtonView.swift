@@ -19,31 +19,46 @@ struct OverlayButtonView: View {
             }
             controller.toggleMute()
         } label: {
-            VStack(spacing: verticalSpacing) {
-                if mutedSpeechDetector.isWarningActive {
-                    Text("SPEAKING")
-                        .font(.system(size: warningSize, weight: .black, design: .rounded))
+            ZStack {
+                Circle()
+                    .fill(statusTint)
+
+                if showsWaterMeter {
+                    VStack {
+                        Spacer(minLength: 0)
+                        Rectangle()
+                            .fill(waterTint)
+                            .frame(height: waterHeight)
+                    }
+                    .clipShape(Circle())
+                    .animation(.easeOut(duration: 0.12), value: waterHeight)
+                }
+
+                VStack(spacing: verticalSpacing) {
+                    if mutedSpeechDetector.isWarningActive {
+                        Text("SPEAKING")
+                            .font(.system(size: warningSize, weight: .black, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.55)
+                            .foregroundStyle(.white)
+                    }
+
+                    Text(controller.state.shortLabel)
+                        .font(.system(size: labelSize, weight: .heavy, design: .rounded))
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
                         .foregroundStyle(.white)
-                }
 
-                Text(controller.state.shortLabel)
-                    .font(.system(size: labelSize, weight: .heavy, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                    .foregroundStyle(.white)
-
-                if showsDetail {
-                    Text(detailLabel)
-                        .font(.system(size: detailSize, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                        .foregroundStyle(.white.opacity(0.86))
+                    if showsDetail {
+                        Text(detailLabel)
+                            .font(.system(size: detailSize, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.55)
+                            .foregroundStyle(.white.opacity(0.86))
+                    }
                 }
             }
             .frame(width: settings.overlaySize, height: settings.overlaySize)
-            .background(statusTint, in: Circle())
             .contentShape(Circle())
             .scaleEffect(warningScale)
         }
@@ -99,6 +114,25 @@ struct OverlayButtonView: View {
 
     private var showsDetail: Bool {
         settings.overlaySize >= 88 && controller.state.canToggleMute
+    }
+
+    private var showsWaterMeter: Bool {
+        controller.state == .unmuted
+    }
+
+    private var waterHeight: Double {
+        settings.overlaySize * Double(min(1, max(0, microphoneMonitor.level)))
+    }
+
+    private var waterTint: some ShapeStyle {
+        LinearGradient(
+            colors: [
+                Color(red: 0.52, green: 1.00, blue: 0.72).opacity(0.84),
+                Color(red: 0.10, green: 0.84, blue: 0.44).opacity(0.70)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     private var detailLabel: String {
